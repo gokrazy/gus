@@ -28,8 +28,9 @@ import (
 )
 
 type server struct {
-	db      *sql.DB
-	queries *queries
+	db       *sql.DB
+	queries  *queries
+	imageDir string
 }
 
 var templates = template.Must(template.New("root").ParseFS(assets.Assets, "*.tmpl.html"))
@@ -111,7 +112,7 @@ func (s *server) heartbeat(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func newServer(databaseType, databaseSource string) (*server, *http.ServeMux, error) {
+func newServer(databaseType, databaseSource, imageDir string) (*server, *http.ServeMux, error) {
 	log.Printf("using database: %s", databaseType)
 
 	db, err := sql.Open(databaseType, databaseSource)
@@ -125,13 +126,23 @@ func newServer(databaseType, databaseSource string) (*server, *http.ServeMux, er
 	}
 
 	s := &server{
-		db:      db,
-		queries: queries,
+		db:       db,
+		queries:  queries,
+		imageDir: imageDir,
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Assets))))
 	mux.Handle("/", handleError(s.index))
 	mux.Handle("/api/v1/heartbeat", handleError(s.heartbeat))
+	mux.Handle("/api/v1/push", handleError(s.push))
+	if s.imageDir != "" {
+		// TODO: start periodic s.imageDir+"/tmp" cleanup
+
+		// TODO: add a handler that explicitly only allows access to full.gaf
+		// and sets Content-Type: application/zip without sniffing. verify that
+		// resume still works.
+		mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(s.imageDir))))
+	}
 	return s, mux, nil
 }
 
@@ -140,6 +151,7 @@ func Main() error {
 		listen         = flag.String("listen", "localhost:8655", "[host]:port listen address")
 		databaseType   = flag.String("database_type", "sqlite", "can be one of: sqlite, postgres")
 		databaseSource = flag.String("database_source", ":memory:", "database source for GUS internal state. can be :memory: (default. stores state in memory), directory path (sqlite) or an connection DSN (postgres. reference: https://pkg.go.dev/github.com/lib/pq#hdr-Connection_String_Parameters)")
+		imageDir       = flag.String("image_dir", "", "if non-empty, a directory on disk in which to storage gokrazy disk images (consuming dozens to hundreds of megabytes each)")
 	)
 	flag.Parse()
 
@@ -147,7 +159,7 @@ func Main() error {
 		*databaseSource = filepath.Join(*databaseSource, "gus.db"+"?mode=rwc")
 	}
 
-	_, mux, err := newServer(*databaseType, *databaseSource)
+	_, mux, err := newServer(*databaseType, *databaseSource, *imageDir)
 	if err != nil {
 		return err
 	}
