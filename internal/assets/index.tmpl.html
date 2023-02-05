@@ -1,0 +1,30 @@
+{{ template "header.tmpl.html" . }}
+
+<div class="row">
+  <div class="col-md-12">
+
+    <h1>machines</h1>
+
+    <table class="table">
+      <tbody><tr>
+	  <th width="20%">machine id</th>
+	  <th width="80%">last heartbeat</th>
+	</tr>
+
+	{{ range $mach := .Machines }}
+	<tr>
+	  <td>
+	    <a href="/status?mach={{ $mach.MachineID }}">{{ $mach.MachineID }}</a>
+	  </td>
+	  <td class="lastheartbeat">
+	    {{ $mach.LastHeartbeat }}
+	  </td>
+	</tr>
+	{{ end }}
+
+    </table>
+  </div>
+
+</div>
+
+{{ template "footer.tmpl.html" . }}

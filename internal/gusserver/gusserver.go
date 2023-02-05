@@ -13,6 +13,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gokrazy/gus/internal/assets"
+	"github.com/gokrazy/gus/internal/version"
+
 	// modernc.org/sqlite is a cgo-free SQLite implementation (that uses a
 	// custom C compiler targeting Go!).
 	//
@@ -27,17 +30,9 @@ type server struct {
 	queries *queries
 }
 
-var indexTmpl = template.Must(template.New("").Parse(`<!DOCTYPE html>
-<html>
-<head>
-<title>GUS</title>
-</head>
-<body>
-<h1>Machines</h1>
-{{ range $mach := .Machines }}
-{{ $mach.MachineID }} - {{ $mach.LastHeartbeat }}
-{{ end }}
-`))
+var templates = template.Must(template.New("root").ParseFS(assets.Assets, "*.tmpl.html"))
+
+var versionBrief = version.ReadBrief()
 
 func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	rows, err := s.queries.selectMachines.QueryContext(r.Context())
@@ -62,9 +57,11 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	var buf bytes.Buffer
-	if err := indexTmpl.Execute(&buf, struct {
+	if err := templates.ExecuteTemplate(&buf, "index.tmpl.html", struct {
+		Version  string
 		Machines []machine
 	}{
+		Version:  versionBrief,
 		Machines: machines,
 	}); err != nil {
 		return err
@@ -128,6 +125,7 @@ func newServer(databaseDir string) (*server, *http.ServeMux, error) {
 		queries: queries,
 	}
 	mux := http.NewServeMux()
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Assets))))
 	mux.Handle("/", handleError(s.index))
 	mux.Handle("/api/v1/heartbeat", handleError(s.heartbeat))
 	return s, mux, nil
