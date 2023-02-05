@@ -96,6 +96,7 @@ func newServer(databaseType, databaseSource, imageDir string) (*server, *http.Se
 	mux.Handle("/", handleError(s.index))
 	mux.Handle("/api/v1/heartbeat", handleError(s.heartbeat))
 	mux.Handle("/api/v1/push", handleError(s.push))
+	mux.Handle("/api/v1/ingest", handleError(s.ingest))
 	if s.imageDir != "" {
 		// TODO: start periodic s.imageDir+"/tmp" cleanup
 

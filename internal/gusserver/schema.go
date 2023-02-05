@@ -8,6 +8,7 @@ import (
 type queries struct {
 	insertHeartbeat *sql.Stmt
 	selectMachines  *sql.Stmt
+	insertImage     *sql.Stmt
 }
 
 func initDatabase(db *sql.DB, dbType string) (*queries, error) {
@@ -47,6 +48,15 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 		return nil, err
 	}
 
+	insertImage, err := db.Prepare(`
+INSERT INTO images (sbom_hash, ingestion_timestamp, machine_id_pattern, registry_type, download_url)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (sbom_hash) DO UPDATE SET ingestion_timestamp = $2, machine_id_pattern = $3, registry_type = $4, download_url = $5
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	insertHeartbeat, err := db.Prepare(`
 INSERT INTO heartbeats (machine_id, timestamp, sbom_hash, sbom)
 VALUES ($1, $2, $3, $4)
@@ -66,5 +76,6 @@ SELECT machine_id, timestamp FROM heartbeats
 	return &queries{
 		insertHeartbeat: insertHeartbeat,
 		selectMachines:  selectMachines,
+		insertImage:     insertImage,
 	}, nil
 }
