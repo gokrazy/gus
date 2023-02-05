@@ -40,8 +40,16 @@ func (s *server) heartbeat(w http.ResponseWriter, r *http.Request) error {
 	if _, err := s.queries.insertHeartbeat.ExecContext(r.Context(), req.MachineID, now, req.SBOMHash, sbom); err != nil {
 		return err
 	}
-	// TODO: insert into machines, too
-	// TODO: update desired image
+
+	if _, err := s.queries.insertMachine.ExecContext(r.Context(), req.MachineID); err != nil {
+		return err
+	}
+
+	// TODO(optimization): only update the desired image for machine req.MachineID
+	if err := s.updateDesired(); err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, "{}")
 	return nil

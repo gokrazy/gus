@@ -3,33 +3,10 @@ package gusserver
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
-
-type testDatabase struct {
-	databaseType   string
-	databaseSource string
-}
-
-func testDatabases() []testDatabase {
-	pgHost := os.Getenv("POSTGRES_HOST")
-	pgPort := os.Getenv("POSTGRES_PORT")
-	pgUser := os.Getenv("POSTGRES_USER")
-	pgPassword := os.Getenv("POSTGRES_PASSWORD")
-	pgDBName := os.Getenv("POSTGRES_DBNAME")
-
-	dbs := []testDatabase{
-		{"sqlite", ":memory:"},
-		{"postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			pgHost, pgPort, pgUser, pgPassword, pgDBName)},
-	}
-
-	return dbs
-}
 
 func TestHeartbeat(t *testing.T) {
 	testDBs := testDatabases()
@@ -45,15 +22,10 @@ func TestHeartbeat(t *testing.T) {
 				t.Fatalf("unable to reach database %s", tc.databaseType)
 			}
 
-			// Ensure the heartbeats table is empty when a fresh server starts
-			rows, err := srv.db.Query("SELECT machine_id FROM heartbeats")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer rows.Close()
-			if rows.Next() {
-				t.Fatalf("heartbeats table unexpectedly contains entries")
-			}
+			// Ensure the heartbeats and machines tables are empty when a fresh
+			// server starts
+			ensureEmpty(t, srv, "heartbeats")
+			ensureEmpty(t, srv, "machines")
 
 			testsrv := httptest.NewServer(mux)
 			client := testsrv.Client()
@@ -73,7 +45,7 @@ func TestHeartbeat(t *testing.T) {
 			}
 
 			// Ensure the heartbeats table has a corresponding entry now
-			rows, err = srv.db.Query("SELECT machine_id FROM heartbeats")
+			rows, err := srv.db.Query("SELECT machine_id FROM heartbeats")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,6 +62,25 @@ func TestHeartbeat(t *testing.T) {
 			}
 			if rows.Next() {
 				t.Fatalf("heartbeats table unexpectedly contains more than one entry")
+			}
+
+			// Ensure the machines table has a corresponding entry now
+			rows, err = srv.db.Query("SELECT machine_id FROM machines")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
+			if !rows.Next() {
+				t.Fatalf("machines table unexpectedly still contains no entries")
+			}
+			if err := rows.Scan(&machineID); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := machineID, "scan2drive"; got != want {
+				t.Fatalf("machines table entry has unexpected machine_id: got %q, want %q", got, want)
+			}
+			if rows.Next() {
+				t.Fatalf("machines table unexpectedly contains more than one entry")
 			}
 		})
 	}

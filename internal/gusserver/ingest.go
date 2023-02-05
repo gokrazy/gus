@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -61,8 +62,11 @@ func (s *server) ingest(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// TODO: depending on the ingestion policy, update machines.desired_image
-	// for all matching machines.
+	log.Printf("Ingested image %q (matching %q)", req.SBOMHash, req.MachineIDPattern)
+
+	if err := s.updateDesired(); err != nil {
+		return err
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, "{}")

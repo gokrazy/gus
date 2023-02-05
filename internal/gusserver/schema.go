@@ -6,9 +6,13 @@ import (
 )
 
 type queries struct {
-	insertHeartbeat *sql.Stmt
-	selectMachines  *sql.Stmt
-	insertImage     *sql.Stmt
+	insertHeartbeat          *sql.Stmt
+	insertMachine            *sql.Stmt
+	selectMachines           *sql.Stmt
+	selectMachinesForDesired *sql.Stmt
+	insertImage              *sql.Stmt
+	selectImagesForDesired   *sql.Stmt
+	updateDesiredImage       *sql.Stmt
 }
 
 func initDatabase(db *sql.DB, dbType string) (*queries, error) {
@@ -24,7 +28,7 @@ CREATE TABLE IF NOT EXISTS images (
 CREATE TABLE IF NOT EXISTS machines (
 	machine_id TEXT NOT NULL PRIMARY KEY,
 	desired_image TEXT NULL,
-	update_state TEXT NOT NULL,
+	update_state TEXT NULL,
 	ingestion_policy TEXT NULL
 );
 
@@ -66,6 +70,15 @@ ON CONFLICT (machine_id) DO UPDATE SET timestamp = $2, sbom_hash = $3, sbom = $4
 		return nil, err
 	}
 
+	insertMachine, err := db.Prepare(`
+INSERT INTO machines (machine_id)
+VALUES ($1)
+ON CONFLICT (machine_id) DO NOTHING
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	selectMachines, err := db.Prepare(`
 SELECT machine_id, timestamp FROM heartbeats
 `)
@@ -73,9 +86,40 @@ SELECT machine_id, timestamp FROM heartbeats
 		return nil, err
 	}
 
+	selectMachinesForDesired, err := db.Prepare(`
+SELECT machine_id, desired_image, ingestion_policy FROM machines
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	selectImagesForDesired, err := db.Prepare(`
+SELECT
+  sbom_hash,
+  machine_id_pattern
+FROM images
+ORDER BY ingestion_timestamp DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	updateDesiredImage, err := db.Prepare(`
+UPDATE machines
+SET desired_image = $1
+WHERE machine_id = $2
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	return &queries{
-		insertHeartbeat: insertHeartbeat,
-		selectMachines:  selectMachines,
-		insertImage:     insertImage,
+		insertHeartbeat:          insertHeartbeat,
+		insertMachine:            insertMachine,
+		selectMachines:           selectMachines,
+		selectMachinesForDesired: selectMachinesForDesired,
+		insertImage:              insertImage,
+		selectImagesForDesired:   selectImagesForDesired,
+		updateDesiredImage:       updateDesiredImage,
 	}, nil
 }
