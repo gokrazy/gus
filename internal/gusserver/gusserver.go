@@ -23,6 +23,8 @@ import (
 	// with cgo), but that’s still good enough for what we need:
 	// https://datastation.multiprocess.io/blog/2022-05-12-sqlite-in-go-with-and-without-cgo.html
 	_ "modernc.org/sqlite"
+
+	_ "github.com/lib/pq"
 )
 
 type server struct {
@@ -109,13 +111,15 @@ func (s *server) heartbeat(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func newServer(databaseDir string) (*server, *http.ServeMux, error) {
-	db, err := sql.Open("sqlite", databaseDir+"?mode=rwc")
+func newServer(databaseType, databaseSource string) (*server, *http.ServeMux, error) {
+	log.Printf("using database: %s", databaseType)
+
+	db, err := sql.Open(databaseType, databaseSource)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	queries, err := initDatabase(db)
+	queries, err := initDatabase(db, databaseType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,15 +137,17 @@ func newServer(databaseDir string) (*server, *http.ServeMux, error) {
 
 func Main() error {
 	var (
-		listen      = flag.String("listen", "localhost:8655", "[host]:port listen address")
-		databaseDir = flag.String("database_dir", "/var/lib/gus", "database directory for GUS internal state. the special value :memory: stores state in memory")
+		listen         = flag.String("listen", "localhost:8655", "[host]:port listen address")
+		databaseType   = flag.String("database_type", "sqlite", "can be one of: sqlite, postgres")
+		databaseSource = flag.String("database_source", ":memory:", "database source for GUS internal state. can be :memory: (default. stores state in memory), directory path (sqlite) or an connection DSN (postgres. reference: https://pkg.go.dev/github.com/lib/pq#hdr-Connection_String_Parameters)")
 	)
 	flag.Parse()
 
-	if *databaseDir != ":memory:" {
-		*databaseDir = filepath.Join(*databaseDir, "gus.db")
+	if *databaseType == "sqlite" && *databaseSource != ":memory:" {
+		*databaseSource = filepath.Join(*databaseSource, "gus.db"+"?mode=rwc")
 	}
-	_, mux, err := newServer(*databaseDir)
+
+	_, mux, err := newServer(*databaseType, *databaseSource)
 	if err != nil {
 		return err
 	}

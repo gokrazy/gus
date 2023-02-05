@@ -9,7 +9,7 @@ import (
 )
 
 func TestHeartbeat(t *testing.T) {
-	srv, mux, err := newServer(":memory:")
+	srv, mux, err := newServer("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

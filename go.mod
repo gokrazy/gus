@@ -2,7 +2,10 @@ module github.com/gokrazy/gus
 
 go 1.19
 
-require modernc.org/sqlite v1.20.3
+require (
+	github.com/lib/pq v1.10.7
+	modernc.org/sqlite v1.20.3
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
