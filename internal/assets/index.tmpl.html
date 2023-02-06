@@ -7,8 +7,11 @@
 
     <table class="table">
       <tbody><tr>
-	  <th width="20%">machine id</th>
-	  <th width="80%">last heartbeat</th>
+	  <th>machine id</th>
+	  <th>version</th>
+	  <th>last heartbeat</th>
+	  <th>model</th>
+	  <th>remote IP</th>
 	</tr>
 
 	{{ range $mach := .Machines }}
@@ -16,8 +19,17 @@
 	  <td>
 	    <a href="/status?mach={{ $mach.MachineID }}">{{ $mach.MachineID }}</a>
 	  </td>
+	  <td>
+	    {{ $mach.SBOMHash | printSBOMHash }}
+	  </td>
 	  <td class="lastheartbeat">
-	    {{ $mach.LastHeartbeat }}
+	    {{ $mach.LastHeartbeat | printHeartbeat }}
+	  </td>
+	  <td>
+	    {{ $mach.Model }}
+	  </td>
+	  <td>
+	    {{ $mach.RemoteIP }}
 	  </td>
 	</tr>
 	{{ end }}

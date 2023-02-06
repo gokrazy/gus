@@ -25,30 +25,62 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type server struct {
-	db       *sql.DB
-	queries  *queries
-	imageDir string
+type config struct {
+	imageDir       string
+	reverseProxied bool
 }
 
-var templates = template.Must(template.New("root").ParseFS(assets.Assets, "*.tmpl.html"))
+type server struct {
+	db      *sql.DB
+	queries *queries
+	cfg     *config
+}
+
+var templates = template.Must(template.New("root").
+	Funcs(template.FuncMap{
+		"printSBOMHash": func(sbomHash string) string {
+			const sbomHashLen = 10
+			if len(sbomHash) < sbomHashLen {
+				return sbomHash
+			}
+			return sbomHash[:sbomHashLen]
+		},
+		"printHeartbeat": func(heartbeat time.Time) string {
+			if time.Since(heartbeat) < 24*time.Hour {
+				return heartbeat.Format("15:04:05")
+			}
+			return heartbeat.Format("2006-01-02 15:04:05")
+		},
+	}).
+	ParseFS(assets.Assets, "*.tmpl.html"))
 
 var versionBrief = version.ReadBrief()
 
 func (s *server) index(w http.ResponseWriter, r *http.Request) error {
-	rows, err := s.queries.selectMachines.QueryContext(r.Context())
+	rows, err := s.queries.selectMachinesForIndex.QueryContext(r.Context())
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	type machine struct {
-		MachineID     string
-		LastHeartbeat time.Time
+		MachineID       string
+		SBOMHash        string
+		DesiredSBOMHash string
+		LastHeartbeat   time.Time
+		Model           string
+		RemoteIP        string
 	}
 	var machines []machine
 	for rows.Next() {
 		var m machine
-		if err := rows.Scan(&m.MachineID, &m.LastHeartbeat); err != nil {
+		err := rows.Scan(
+			&m.MachineID,
+			&m.SBOMHash,
+			// TODO: desired
+			&m.LastHeartbeat,
+			&m.Model,
+			&m.RemoteIP)
+		if err != nil {
 			return err
 		}
 		machines = append(machines, m)
@@ -73,7 +105,7 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	return err
 }
 
-func newServer(databaseType, databaseSource, imageDir string) (*server, *http.ServeMux, error) {
+func newServer(databaseType, databaseSource string, cfg *config) (*server, *http.ServeMux, error) {
 	log.Printf("using database: %s", databaseType)
 
 	db, err := sql.Open(databaseType, databaseSource)
@@ -86,10 +118,14 @@ func newServer(databaseType, databaseSource, imageDir string) (*server, *http.Se
 		return nil, nil, err
 	}
 
+	if cfg == nil {
+		cfg = &config{}
+	}
+
 	s := &server{
-		db:       db,
-		queries:  queries,
-		imageDir: imageDir,
+		db:      db,
+		queries: queries,
+		cfg:     cfg,
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Assets))))
@@ -97,13 +133,13 @@ func newServer(databaseType, databaseSource, imageDir string) (*server, *http.Se
 	mux.Handle("/api/v1/heartbeat", handleError(s.heartbeat))
 	mux.Handle("/api/v1/push", handleError(s.push))
 	mux.Handle("/api/v1/ingest", handleError(s.ingest))
-	if s.imageDir != "" {
+	if s.cfg.imageDir != "" {
 		// TODO: start periodic s.imageDir+"/tmp" cleanup
 
 		// TODO: add a handler that explicitly only allows access to full.gaf
 		// and sets Content-Type: application/zip without sniffing. verify that
 		// resume still works.
-		mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(s.imageDir))))
+		mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(s.cfg.imageDir))))
 	}
 	return s, mux, nil
 }
@@ -114,6 +150,7 @@ func Main() error {
 		databaseType   = flag.String("database_type", "sqlite", "can be one of: sqlite, postgres")
 		databaseSource = flag.String("database_source", ":memory:", "database source for GUS internal state. can be :memory: (default. stores state in memory), directory path (sqlite) or an connection DSN (postgres. reference: https://pkg.go.dev/github.com/lib/pq#hdr-Connection_String_Parameters)")
 		imageDir       = flag.String("image_dir", "", "if non-empty, a directory on disk in which to storage gokrazy disk images (consuming dozens to hundreds of megabytes each)")
+		reverseProxied = flag.Bool("reverse_proxied", false, "use X-Forwarded-For header instead of remote address")
 	)
 	flag.Parse()
 
@@ -121,7 +158,10 @@ func Main() error {
 		*databaseSource = filepath.Join(*databaseSource, "gus.db"+"?mode=rwc")
 	}
 
-	_, mux, err := newServer(*databaseType, *databaseSource, *imageDir)
+	_, mux, err := newServer(*databaseType, *databaseSource, &config{
+		imageDir:       *imageDir,
+		reverseProxied: *reverseProxied,
+	})
 	if err != nil {
 		return err
 	}

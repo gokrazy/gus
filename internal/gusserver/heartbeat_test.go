@@ -13,7 +13,7 @@ func TestHeartbeat(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer(tc.databaseType, tc.databaseSource, "")
+			srv, mux, err := newServer(tc.databaseType, tc.databaseSource, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

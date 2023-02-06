@@ -36,7 +36,9 @@ func TestPush(t *testing.T) {
 	// The push API does not access or modify any database state, so we only
 	// test it with sqlite.
 	t.Run("sqlite", func(t *testing.T) {
-		_, mux, err := newServer("sqlite", ":memory:", t.TempDir())
+		_, mux, err := newServer("sqlite", ":memory:", &config{
+			imageDir: t.TempDir(),
+		})
 		if err != nil {
 			t.Fatal(err)
 		}

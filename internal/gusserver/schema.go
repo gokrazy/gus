@@ -8,7 +8,7 @@ import (
 type queries struct {
 	insertHeartbeat          *sql.Stmt
 	insertMachine            *sql.Stmt
-	selectMachines           *sql.Stmt
+	selectMachinesForIndex   *sql.Stmt
 	selectMachinesForDesired *sql.Stmt
 	insertImage              *sql.Stmt
 	selectImagesForDesired   *sql.Stmt
@@ -36,7 +36,10 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 	machine_id TEXT NOT NULL PRIMARY KEY,
 	timestamp %[1]s NOT NULL,
 	sbom_hash TEXT NOT NULL,
-	sbom TEXT NOT NULL
+	sbom TEXT NOT NULL,
+	kernel TEXT NULL,
+	model TEXT NULL,
+	remote_ip TEXT NULL
 );
 	`
 
@@ -62,9 +65,9 @@ ON CONFLICT (sbom_hash) DO UPDATE SET ingestion_timestamp = $2, machine_id_patte
 	}
 
 	insertHeartbeat, err := db.Prepare(`
-INSERT INTO heartbeats (machine_id, timestamp, sbom_hash, sbom)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (machine_id) DO UPDATE SET timestamp = $2, sbom_hash = $3, sbom = $4
+INSERT INTO heartbeats (machine_id, timestamp, sbom_hash, sbom, kernel, model, remote_ip)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (machine_id) DO UPDATE SET timestamp = $2, sbom_hash = $3, sbom = $4, kernel = $5, model = $6, remote_ip = $7
 `)
 	if err != nil {
 		return nil, err
@@ -79,8 +82,8 @@ ON CONFLICT (machine_id) DO NOTHING
 		return nil, err
 	}
 
-	selectMachines, err := db.Prepare(`
-SELECT machine_id, timestamp FROM heartbeats
+	selectMachinesForIndex, err := db.Prepare(`
+SELECT machine_id, sbom_hash, timestamp, model, remote_ip FROM heartbeats
 `)
 	if err != nil {
 		return nil, err
@@ -116,7 +119,7 @@ WHERE machine_id = $2
 	return &queries{
 		insertHeartbeat:          insertHeartbeat,
 		insertMachine:            insertMachine,
-		selectMachines:           selectMachines,
+		selectMachinesForIndex:   selectMachinesForIndex,
 		selectMachinesForDesired: selectMachinesForDesired,
 		insertImage:              insertImage,
 		selectImagesForDesired:   selectImagesForDesired,

@@ -26,17 +26,17 @@ func (s *server) push(w http.ResponseWriter, r *http.Request) error {
 		return httpError(http.StatusBadRequest, fmt.Errorf("invalid method (expected PUT)"))
 	}
 
-	if s.imageDir == "" {
+	if s.cfg.imageDir == "" {
 		return httpError(http.StatusForbidden, fmt.Errorf("no --image_dir configured on this GUS server"))
 	}
 
 	timePrefix := time.Now().Format(time.RFC3339)
-	dir, err := os.MkdirTemp(s.imageDir, timePrefix+"-")
+	dir, err := os.MkdirTemp(s.cfg.imageDir, timePrefix+"-")
 	if err != nil {
 		return err
 	}
 
-	tempDir := filepath.Join(s.imageDir, "tmp")
+	tempDir := filepath.Join(s.cfg.imageDir, "tmp")
 	if err := os.MkdirAll(tempDir, 0700); err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (s *server) push(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	rel := strings.TrimPrefix(dir, filepath.Clean(s.imageDir)+"/")
+	rel := strings.TrimPrefix(dir, filepath.Clean(s.cfg.imageDir)+"/")
 	resp, err := json.Marshal(pushResponse{
 		DownloadLink: "/images/" + rel + "/full.gaf",
 	})
