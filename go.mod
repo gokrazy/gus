@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/dustin/go-humanize v1.0.0
+	github.com/google/go-cmp v0.5.9
 	github.com/google/renameio/v2 v2.0.0
 	github.com/lib/pq v1.10.7
 	modernc.org/sqlite v1.20.3

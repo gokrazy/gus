@@ -229,6 +229,7 @@ func newServer(databaseType, databaseSource string, cfg *config) (*server, *http
 	mux.Handle("/api/v1/heartbeat", handleError(s.heartbeat))
 	mux.Handle("/api/v1/push", handleError(s.push))
 	mux.Handle("/api/v1/ingest", handleError(s.ingest))
+	mux.Handle("/api/v1/update", handleError(s.update))
 	if s.cfg.imageDir != "" {
 		// TODO: start periodic s.imageDir+"/tmp" cleanup
 

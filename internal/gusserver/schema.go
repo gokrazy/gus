@@ -10,6 +10,7 @@ type queries struct {
 	insertMachine            *sql.Stmt
 	selectMachinesForIndex   *sql.Stmt
 	selectMachinesForDesired *sql.Stmt
+	selectDesired            *sql.Stmt
 	insertImage              *sql.Stmt
 	selectImagesForIndex     *sql.Stmt
 	selectImagesForDesired   *sql.Stmt
@@ -110,6 +111,19 @@ SELECT machine_id, desired_image, ingestion_policy FROM machines
 		return nil, err
 	}
 
+	selectDesired, err := db.Prepare(`
+SELECT
+  machines.desired_image,
+  images.registry_type,
+  images.download_url
+FROM machines
+INNER JOIN images ON (machines.desired_image = images.sbom_hash)
+WHERE machine_id = $1
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	selectImagesForIndex, err := db.Prepare(`
 SELECT
   sbom_hash,
@@ -149,6 +163,7 @@ WHERE machine_id = $2
 		insertMachine:            insertMachine,
 		selectMachinesForIndex:   selectMachinesForIndex,
 		selectMachinesForDesired: selectMachinesForDesired,
+		selectDesired:            selectDesired,
 		insertImage:              insertImage,
 		selectImagesForIndex:     selectImagesForIndex,
 		selectImagesForDesired:   selectImagesForDesired,
