@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gokrazy/gus/internal/assets"
@@ -51,6 +52,12 @@ var templates = template.Must(template.New("root").
 			}
 			return heartbeat.Format("2006-01-02 15:04:05")
 		},
+		"URLForIP": func(ip string) string {
+			if strings.ContainsRune(ip, ':') {
+				return "http://[" + ip + "]"
+			}
+			return "http://" + ip
+		},
 	}).
 	ParseFS(assets.Assets, "*.tmpl.html"))
 
@@ -69,6 +76,7 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 		LastHeartbeat   time.Time
 		Model           string
 		RemoteIP        string
+		Hostname        string
 	}
 	var machines []machine
 	for rows.Next() {
@@ -79,7 +87,8 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 			// TODO: desired
 			&m.LastHeartbeat,
 			&m.Model,
-			&m.RemoteIP)
+			&m.RemoteIP,
+			&m.Hostname)
 		if err != nil {
 			return err
 		}

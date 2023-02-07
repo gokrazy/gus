@@ -16,8 +16,10 @@
 	{{ range $mach := .Machines }}
 	<tr>
 	  <td>
-	    TODO: hostname<br>
-	    <a href="/status?mach={{ $mach.MachineID }}">{{ $mach.MachineID }}</a>
+	    “<a href="http://{{ $mach.Hostname }}">{{ $mach.Hostname }}</a>”
+	    {{ if (ne $mach.MachineID $mach.Hostname) }}
+	    (id {{ $mach.MachineID | printSBOMHash }})
+	    {{ end }}
 	  </td>
 	  <td>
 	    current: <a>{{ $mach.SBOMHash | printSBOMHash }}</a><br>
@@ -25,7 +27,7 @@
 	  </td>
 	  <td class="lastheartbeat">
 	    {{ $mach.LastHeartbeat | printHeartbeat }}<br>
-	    (from {{ $mach.RemoteIP }})
+	    <a href="{{ $mach.RemoteIP | URLForIP }}">{{ $mach.RemoteIP }}</a>
 	  </td>
 	  <td>
 	    {{ $mach.Model }}

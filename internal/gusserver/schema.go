@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 	sbom TEXT NOT NULL,
 	kernel TEXT NULL,
 	model TEXT NULL,
-	remote_ip TEXT NULL
+	remote_ip TEXT NULL,
+	hostname TEXT NULL
 );
 	`
 
@@ -65,9 +66,9 @@ ON CONFLICT (sbom_hash) DO UPDATE SET ingestion_timestamp = $2, machine_id_patte
 	}
 
 	insertHeartbeat, err := db.Prepare(`
-INSERT INTO heartbeats (machine_id, timestamp, sbom_hash, sbom, kernel, model, remote_ip)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (machine_id) DO UPDATE SET timestamp = $2, sbom_hash = $3, sbom = $4, kernel = $5, model = $6, remote_ip = $7
+INSERT INTO heartbeats (machine_id, timestamp, sbom_hash, sbom, kernel, model, remote_ip, hostname)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (machine_id) DO UPDATE SET timestamp = $2, sbom_hash = $3, sbom = $4, kernel = $5, model = $6, remote_ip = $7, hostname = $8
 `)
 	if err != nil {
 		return nil, err
@@ -83,7 +84,7 @@ ON CONFLICT (machine_id) DO NOTHING
 	}
 
 	selectMachinesForIndex, err := db.Prepare(`
-SELECT machine_id, sbom_hash, timestamp, model, remote_ip FROM heartbeats
+SELECT machine_id, sbom_hash, timestamp, model, remote_ip, hostname FROM heartbeats
 `)
 	if err != nil {
 		return nil, err

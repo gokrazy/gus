@@ -12,6 +12,7 @@ import (
 
 type heartbeatRequest struct {
 	MachineID     string          `json:"machine_id"`
+	Hostname      string          `json:"hostname"`
 	SBOMHash      string          `json:"sbom_hash"`
 	SBOM          json.RawMessage `json:"sbom"`
 	HumanReadable struct {
@@ -67,7 +68,8 @@ func (s *server) heartbeat(w http.ResponseWriter, r *http.Request) error {
 		sbom,
 		req.HumanReadable.Kernel,
 		req.HumanReadable.Model,
-		addr)
+		addr,
+		req.Hostname)
 	if err != nil {
 		return err
 	}
