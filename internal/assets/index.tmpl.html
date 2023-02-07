@@ -7,29 +7,28 @@
 
     <table class="table">
       <tbody><tr>
-	  <th>machine id</th>
+	  <th>machine</th>
 	  <th>version</th>
 	  <th>last heartbeat</th>
 	  <th>model</th>
-	  <th>remote IP</th>
 	</tr>
 
 	{{ range $mach := .Machines }}
 	<tr>
 	  <td>
+	    TODO: hostname<br>
 	    <a href="/status?mach={{ $mach.MachineID }}">{{ $mach.MachineID }}</a>
 	  </td>
 	  <td>
-	    {{ $mach.SBOMHash | printSBOMHash }}
+	    current: <a>{{ $mach.SBOMHash | printSBOMHash }}</a><br>
+	    desired: <a>(none)</a>
 	  </td>
 	  <td class="lastheartbeat">
-	    {{ $mach.LastHeartbeat | printHeartbeat }}
+	    {{ $mach.LastHeartbeat | printHeartbeat }}<br>
+	    (from {{ $mach.RemoteIP }})
 	  </td>
 	  <td>
 	    {{ $mach.Model }}
-	  </td>
-	  <td>
-	    {{ $mach.RemoteIP }}
 	  </td>
 	</tr>
 	{{ end }}
