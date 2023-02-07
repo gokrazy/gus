@@ -30,6 +30,9 @@ func (s *server) push(w http.ResponseWriter, r *http.Request) error {
 		return httpError(http.StatusForbidden, fmt.Errorf("no --image_dir configured on this GUS server"))
 	}
 
+	if err := os.MkdirAll(s.cfg.imageDir, 0700); err != nil {
+		return err
+	}
 	timePrefix := time.Now().Format(time.RFC3339)
 	dir, err := os.MkdirTemp(s.cfg.imageDir, timePrefix+"-")
 	if err != nil {
