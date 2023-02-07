@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"flag"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
@@ -114,6 +115,9 @@ func (i *image) Size() uint64 {
 }
 
 func (s *server) index(w http.ResponseWriter, r *http.Request) error {
+	if r.URL.Path != "/" && r.URL.Path != "" {
+		return httpError(http.StatusNotFound, fmt.Errorf("not found"))
+	}
 	rows, err := s.queries.selectMachinesForIndex.QueryContext(r.Context())
 	if err != nil {
 		return err
