@@ -11,6 +11,7 @@ type queries struct {
 	selectMachinesForIndex   *sql.Stmt
 	selectMachinesForDesired *sql.Stmt
 	insertImage              *sql.Stmt
+	selectImagesForIndex     *sql.Stmt
 	selectImagesForDesired   *sql.Stmt
 	updateDesiredImage       *sql.Stmt
 }
@@ -84,7 +85,15 @@ ON CONFLICT (machine_id) DO NOTHING
 	}
 
 	selectMachinesForIndex, err := db.Prepare(`
-SELECT machine_id, sbom_hash, timestamp, model, remote_ip, hostname FROM heartbeats
+SELECT
+  machine_id,
+  sbom_hash,
+  timestamp,
+  model,
+  remote_ip,
+  hostname
+FROM heartbeats
+ORDER BY hostname, machine_id ASC
 `)
 	if err != nil {
 		return nil, err
@@ -92,6 +101,20 @@ SELECT machine_id, sbom_hash, timestamp, model, remote_ip, hostname FROM heartbe
 
 	selectMachinesForDesired, err := db.Prepare(`
 SELECT machine_id, desired_image, ingestion_policy FROM machines
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	selectImagesForIndex, err := db.Prepare(`
+SELECT
+  sbom_hash,
+  ingestion_timestamp,
+  machine_id_pattern,
+  registry_type,
+  download_url
+FROM images
+ORDER BY ingestion_timestamp DESC
 `)
 	if err != nil {
 		return nil, err
@@ -123,6 +146,7 @@ WHERE machine_id = $2
 		selectMachinesForIndex:   selectMachinesForIndex,
 		selectMachinesForDesired: selectMachinesForDesired,
 		insertImage:              insertImage,
+		selectImagesForIndex:     selectImagesForIndex,
 		selectImagesForDesired:   selectImagesForDesired,
 		updateDesiredImage:       updateDesiredImage,
 	}, nil

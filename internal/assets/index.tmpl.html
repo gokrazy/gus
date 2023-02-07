@@ -36,6 +36,39 @@
 	{{ end }}
 
     </table>
+
+    <h1>images</h1>
+
+    <table class="table">
+      <tbody><tr>
+	  <th>machine ID pattern</th>
+	  <th>version</th>
+	  <th>ingested</th>
+	  <th>download</th>
+	</tr>
+
+	{{ range $img := .Images }}
+	<tr>
+	  <td>
+	    <a>{{ $img.MachineIDPattern }}</a>
+	  </td>
+
+	  <td>
+	    {{ $img.SBOMHash | printSBOMHash }}
+	  </td>
+
+	  <td>
+	    {{ $img.IngestionTimestamp | printIngestion }}
+	  </td>
+
+	  <td>
+	    <a><a href="{{ $img.DownloadURL }}">{{ $img.Size | humanizeBytes }} on {{ $img.RegistryType }}</a>
+	  </td>
+	</tr>
+	{{ end }}
+
+    </table>
+
   </div>
 
 </div>

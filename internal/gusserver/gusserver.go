@@ -8,10 +8,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/gokrazy/gus/internal/assets"
 	"github.com/gokrazy/gus/internal/version"
 
@@ -58,10 +60,58 @@ var templates = template.Must(template.New("root").
 			}
 			return "http://" + ip
 		},
+		"printIngestion": func(ingestion time.Time) string {
+			return ingestion.Format("2006-01-02 15:04:05")
+		},
+		"humanizeBytes": func(b uint64) string {
+			return humanize.Bytes(b)
+		},
 	}).
 	ParseFS(assets.Assets, "*.tmpl.html"))
 
 var versionBrief = version.ReadBrief()
+
+type image struct {
+	imageDir string
+
+	SBOMHash           string
+	IngestionTimestamp time.Time
+	MachineIDPattern   string
+	RegistryType       string
+	DownloadURL        string
+}
+
+func (i *image) Size() uint64 {
+	dl := i.DownloadURL
+	if !strings.HasPrefix(dl, "/images/") {
+		// TODO: implement fetching the size of remote images using HTTP HEAD
+		return 0
+	}
+	if i.imageDir == "" {
+		return 0
+	}
+	base := strings.TrimPrefix(dl, "/images/")
+	if idx := strings.IndexRune(base, '/'); idx > 0 {
+		base = base[:idx]
+	}
+	dirents, err := os.ReadDir(i.imageDir)
+	if err != nil {
+		log.Print(err)
+		return 0
+	}
+	for _, ent := range dirents {
+		if ent.Name() != base {
+			continue
+		}
+		st, err := os.Stat(filepath.Join(i.imageDir, ent.Name(), "full.gaf"))
+		if err != nil {
+			log.Print(err)
+			return 0
+		}
+		return uint64(st.Size())
+	}
+	return 0 // not found
+}
 
 func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	rows, err := s.queries.selectMachinesForIndex.QueryContext(r.Context())
@@ -98,13 +148,40 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	rows, err = s.queries.selectImagesForIndex.QueryContext(r.Context())
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var images []image
+	for rows.Next() {
+		i := image{
+			imageDir: s.cfg.imageDir,
+		}
+		err := rows.Scan(
+			&i.SBOMHash,
+			&i.IngestionTimestamp,
+			&i.MachineIDPattern,
+			&i.RegistryType,
+			&i.DownloadURL)
+		if err != nil {
+			return err
+		}
+		images = append(images, i)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
 	var buf bytes.Buffer
 	if err := templates.ExecuteTemplate(&buf, "index.tmpl.html", struct {
 		Version  string
 		Machines []machine
+		Images   []image
 	}{
 		Version:  versionBrief,
 		Machines: machines,
+		Images:   images,
 	}); err != nil {
 		return err
 	}
