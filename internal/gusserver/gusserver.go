@@ -121,6 +121,10 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	defer rows.Close()
 	type machine struct {
 		MachineID       string
+		DesiredImage    sql.NullString
+		UpdateState     sql.NullString
+		IngestionPolicy sql.NullString
+
 		SBOMHash        string
 		DesiredSBOMHash string
 		LastHeartbeat   time.Time
@@ -133,8 +137,10 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 		var m machine
 		err := rows.Scan(
 			&m.MachineID,
+			&m.DesiredImage,
+			&m.UpdateState,
+			&m.IngestionPolicy,
 			&m.SBOMHash,
-			// TODO: desired
 			&m.LastHeartbeat,
 			&m.Model,
 			&m.RemoteIP,

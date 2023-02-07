@@ -86,14 +86,18 @@ ON CONFLICT (machine_id) DO NOTHING
 
 	selectMachinesForIndex, err := db.Prepare(`
 SELECT
-  machine_id,
-  sbom_hash,
-  timestamp,
-  model,
-  remote_ip,
-  hostname
-FROM heartbeats
-ORDER BY hostname, machine_id ASC
+  machines.machine_id,
+  machines.desired_image,
+  machines.update_state,
+  machines.ingestion_policy,
+  heartbeats.sbom_hash,
+  heartbeats.timestamp,
+  heartbeats.model,
+  heartbeats.remote_ip,
+  heartbeats.hostname
+FROM machines
+LEFT JOIN heartbeats ON (machines.machine_id = heartbeats.machine_id)
+ORDER BY heartbeats.hostname, heartbeats.machine_id ASC
 `)
 	if err != nil {
 		return nil, err

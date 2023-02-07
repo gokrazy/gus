@@ -18,12 +18,20 @@
 	  <td>
 	    “<a href="http://{{ $mach.Hostname }}">{{ $mach.Hostname }}</a>”
 	    {{ if (ne $mach.MachineID $mach.Hostname) }}
-	    (id {{ $mach.MachineID | printSBOMHash }})
+	    (id <span title="{{ $mach.MachineID }}">{{ $mach.MachineID | printSBOMHash }}</span>)
 	    {{ end }}
 	  </td>
 	  <td>
 	    current: <a>{{ $mach.SBOMHash | printSBOMHash }}</a><br>
-	    desired: <a>(none)</a>
+	    desired:
+	    {{ if $mach.DesiredImage.Valid }}
+	    <a>{{ $mach.DesiredImage.String }}</a>
+	    {{ if $mach.UpdateState.Valid }}
+	    ({{ $mach.UpdateState.String }})
+	    {{ end }}
+	    {{ else }}
+	    (none)
+	    {{ end }}
 	  </td>
 	  <td class="lastheartbeat">
 	    {{ $mach.LastHeartbeat | printHeartbeat }}<br>
