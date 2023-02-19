@@ -7,7 +7,8 @@
 
     <table class="table">
       <tbody><tr>
-	  <th>machine</th>
+	  <th>hostname</th>
+	  <th>machine id</th>
 	  <th>version</th>
 	  <th>last heartbeat</th>
 	  <th>model</th>
@@ -17,8 +18,10 @@
 	<tr>
 	  <td>
 	    “<a href="http://{{ $mach.Hostname }}">{{ $mach.Hostname }}</a>”
+	  </td>
+	  <td>
 	    {{ if (ne $mach.MachineID $mach.Hostname) }}
-	    (id <span title="{{ $mach.MachineID }}">{{ $mach.MachineID | printSBOMHash }}</span>)
+	    <span title="{{ $mach.MachineID }}">{{ $mach.MachineID | printSBOMHash }}</span>
 	    {{ end }}
 	  </td>
 	  <td>
