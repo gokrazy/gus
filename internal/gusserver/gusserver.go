@@ -244,6 +244,10 @@ func newServer(databaseType, databaseSource string, cfg *config) (*server, *http
 	return s, mux, nil
 }
 
+func (s *server) Close() error {
+	return s.db.Close()
+}
+
 func Main() error {
 	var (
 		listen         = flag.String("listen", "localhost:8655", "[host]:port listen address")

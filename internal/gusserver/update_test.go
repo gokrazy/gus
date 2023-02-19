@@ -16,10 +16,11 @@ func TestUpdate(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer(tc.databaseType, tc.databaseSource, nil)
+			srv, mux, err := newServer("txdb/"+tc.databaseType, t.Name(), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer srv.Close()
 
 			if err := srv.db.Ping(); err != nil {
 				t.Fatalf("unable to reach database %s", tc.databaseType)

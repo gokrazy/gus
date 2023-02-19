@@ -3,6 +3,7 @@ package gusserver
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 type queries struct {
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 	`
 
 	var schema string
-	switch dbType {
+	switch strings.TrimPrefix(dbType, "txdb/") {
 	case "sqlite":
 		schema = fmt.Sprintf(schemaTemplate, "DATETIME")
 	case "postgres":

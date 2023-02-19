@@ -3,14 +3,16 @@ module github.com/gokrazy/gus
 go 1.19
 
 require (
+	github.com/DATA-DOG/go-txdb v0.1.5
 	github.com/dustin/go-humanize v1.0.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/renameio/v2 v2.0.0
 	github.com/lib/pq v1.10.7
-	modernc.org/sqlite v1.20.3
+	modernc.org/sqlite v1.20.4
 )
 
 require (
+	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect

@@ -3,13 +3,18 @@ package gusserver
 import (
 	"fmt"
 	"os"
+	"sync"
 	"testing"
+
+	"github.com/DATA-DOG/go-txdb"
 )
 
 type testDatabase struct {
 	databaseType   string
 	databaseSource string
 }
+
+var registerOnce sync.Once
 
 func testDatabases() []testDatabase {
 	pgHost := os.Getenv("POSTGRES_HOST")
@@ -23,6 +28,16 @@ func testDatabases() []testDatabase {
 		{"postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			pgHost, pgPort, pgUser, pgPassword, pgDBName)},
 	}
+
+	registerOnce.Do(func() {
+		for _, db := range dbs {
+			if db.databaseType == "sqlite" {
+				txdb.Register("txdb/"+db.databaseType, db.databaseType, db.databaseSource, txdb.SavePointOption(nil))
+			} else {
+				txdb.Register("txdb/"+db.databaseType, db.databaseType, db.databaseSource)
+			}
+		}
+	})
 
 	return dbs
 }
