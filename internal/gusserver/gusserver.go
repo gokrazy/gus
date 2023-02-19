@@ -157,6 +157,9 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) error {
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
 
 	rows, err = s.queries.selectImagesForIndex.QueryContext(r.Context())
 	if err != nil {

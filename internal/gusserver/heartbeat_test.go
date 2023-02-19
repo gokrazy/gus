@@ -63,6 +63,9 @@ func TestHeartbeat(t *testing.T) {
 			if rows.Next() {
 				t.Fatalf("heartbeats table unexpectedly contains more than one entry")
 			}
+			if err := rows.Close(); err != nil {
+				t.Fatal(err)
+			}
 
 			// Ensure the machines table has a corresponding entry now
 			rows, err = srv.db.Query("SELECT machine_id FROM machines")
@@ -82,6 +85,10 @@ func TestHeartbeat(t *testing.T) {
 			if rows.Next() {
 				t.Fatalf("machines table unexpectedly contains more than one entry")
 			}
+			if err := rows.Close(); err != nil {
+				t.Fatal(err)
+			}
+
 		})
 	}
 }

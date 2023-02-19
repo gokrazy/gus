@@ -34,6 +34,9 @@ func (s *server) updateDesired() error {
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
 
 	rows, err = s.queries.selectImagesForDesired.QueryContext(ctx)
 	if err != nil {
@@ -60,6 +63,9 @@ func (s *server) updateDesired() error {
 		}
 	}
 	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
 		return err
 	}
 

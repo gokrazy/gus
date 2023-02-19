@@ -82,6 +82,9 @@ func TestIngest(t *testing.T) {
 			if rows.Next() {
 				t.Fatalf("images table unexpectedly contains more than one entry")
 			}
+			if err := rows.Close(); err != nil {
+				t.Fatal(err)
+			}
 
 			// Ensure the machines table was updated for the new desired_image
 			rows, err = srv.db.Query("SELECT machine_id, desired_image FROM machines")
@@ -103,6 +106,10 @@ func TestIngest(t *testing.T) {
 			if rows.Next() {
 				t.Fatalf("machines table unexpectedly contains more than one entry")
 			}
+			if err := rows.Close(); err != nil {
+				t.Fatal(err)
+			}
+
 		})
 	}
 }
