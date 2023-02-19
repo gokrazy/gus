@@ -24,7 +24,7 @@
 	    <span title="{{ $mach.MachineID }}">{{ $mach.MachineID | printSBOMHash }}</span>
 	    {{ end }}
 	  </td>
-	  <td>
+	  <td style="font-family: monospace">
 	    current: <a>{{ $mach.SBOMHash | printSBOMHash }}</a><br>
 	    desired:
 	    {{ if $mach.DesiredImage.Valid }}
