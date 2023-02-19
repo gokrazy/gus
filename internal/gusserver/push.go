@@ -20,7 +20,7 @@ type pushResponse struct {
 // For local testing, use:
 //
 //	% gok -i gokrazy overwrite --gaf /tmp/gokrazy.gaf
-//	% curl --data-binary @/tmp/gokrazy.gaf -X PUT -v http://localhost:8655/api/v1/push
+//	% gok -i gokrazy push --gaf /tmp/gokrazy.gaf --server http://localhost:8655
 func (s *server) push(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "PUT" {
 		return httpError(http.StatusBadRequest, fmt.Errorf("invalid method (expected PUT)"))
