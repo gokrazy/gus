@@ -4,24 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
-type updateRequest struct {
+type attemptUpdateRequest struct {
 	MachineID string `json:"machine_id"`
+	SBOMHash  string `json:"sbom_hash"`
 }
 
-type updateResponse struct {
-	SBOMHash     string `json:"sbom_hash"`
-	RegistryType string `json:"registry_type"`
-	DownloadLink string `json:"download_link"`
-}
+type attemptUpdateResponse struct{}
 
-func (s *server) update(w http.ResponseWriter, r *http.Request) error {
+func (s *server) attempt(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
 	if r.Method != "POST" {
 		return httpError(http.StatusBadRequest, fmt.Errorf("invalid method (expected POST)"))
 	}
-	var req updateRequest
+	var req attemptUpdateRequest
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
@@ -34,9 +33,14 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) error {
 		return httpError(http.StatusBadRequest, fmt.Errorf("machine_id not set"))
 	}
 
-	// TODO: this query should also update the machine’s update_state to INFORMED
+	if req.SBOMHash == "" {
+		return httpError(http.StatusBadRequest, fmt.Errorf("sbom_hash not set"))
+	}
 
-	rows, err := s.queries.selectDesired.QueryContext(r.Context(), req.MachineID)
+	// Verify this AttemptUpdate request is for the desired image of the
+	// machine, otherwise perhaps a new image has been ingested between
+	// GetUpdate and AttemptUpdate.
+	rows, err := s.queries.selectDesired.QueryContext(ctx, req.MachineID)
 	if err != nil {
 		return err
 	}
@@ -60,12 +64,19 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) error {
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
 
-	b, err = json.Marshal(&updateResponse{
-		SBOMHash:     d.DesiredImage,
-		RegistryType: d.RegistryType,
-		DownloadLink: d.DownloadLink,
-	})
+	if d.DesiredImage == req.SBOMHash {
+		if _, err := s.queries.updateUpdateState.ExecContext(ctx, "attempted", req.MachineID); err != nil {
+			return err
+		}
+	} else {
+		log.Printf("device %q is updating to %s (desired: %s)?!", req.MachineID, req.SBOMHash, d.DesiredImage)
+	}
+
+	b, err = json.Marshal(&attemptUpdateResponse{})
 	if err != nil {
 		return err
 	}

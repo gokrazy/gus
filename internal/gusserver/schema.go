@@ -16,6 +16,7 @@ type queries struct {
 	selectImagesForIndex     *sql.Stmt
 	selectImagesForDesired   *sql.Stmt
 	updateDesiredImage       *sql.Stmt
+	updateUpdateState        *sql.Stmt
 }
 
 func initDatabase(db *sql.DB, dbType string) (*queries, error) {
@@ -159,6 +160,15 @@ WHERE machine_id = $2
 		return nil, err
 	}
 
+	updateUpdateState, err := db.Prepare(`
+UPDATE machines
+SET update_state = $1
+WHERE machine_id = $2
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	return &queries{
 		insertHeartbeat:          insertHeartbeat,
 		insertMachine:            insertMachine,
@@ -169,5 +179,6 @@ WHERE machine_id = $2
 		selectImagesForIndex:     selectImagesForIndex,
 		selectImagesForDesired:   selectImagesForDesired,
 		updateDesiredImage:       updateDesiredImage,
+		updateUpdateState:        updateUpdateState,
 	}, nil
 }

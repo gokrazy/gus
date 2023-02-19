@@ -80,8 +80,7 @@ func (s *server) updateDesired() error {
 			}
 			log.Printf("Setting desired image for machine %q to %q", mach.MachineID, img.SBOMHash)
 
-			_, err := s.queries.updateDesiredImage.ExecContext(ctx, img.SBOMHash, mach.MachineID)
-			if err != nil {
+			if _, err := s.queries.updateDesiredImage.ExecContext(ctx, img.SBOMHash, mach.MachineID); err != nil {
 				return err
 			}
 
