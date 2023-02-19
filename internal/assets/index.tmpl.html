@@ -25,7 +25,7 @@
 	    current: <a>{{ $mach.SBOMHash | printSBOMHash }}</a><br>
 	    desired:
 	    {{ if $mach.DesiredImage.Valid }}
-	    <a>{{ $mach.DesiredImage.String }}</a>
+	    <a>{{ $mach.DesiredImage.String | printSBOMHash }}</a>
 	    {{ if $mach.UpdateState.Valid }}
 	    ({{ $mach.UpdateState.String }})
 	    {{ end }}
