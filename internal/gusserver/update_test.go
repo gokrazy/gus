@@ -48,7 +48,7 @@ func TestUpdate(t *testing.T) {
 				MachineIDPattern: "scan2drive",
 				SBOMHash:         "abcdefg",
 				RegistryType:     "localdisk",
-				DownloadLink:     "/doesnotexist/full.gaf",
+				DownloadLink:     "/doesnotexist/disk.gaf",
 			})
 			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {
@@ -88,7 +88,7 @@ func TestUpdate(t *testing.T) {
 			want := updateResponse{
 				SBOMHash:     "abcdefg",
 				RegistryType: "localdisk",
-				DownloadLink: "/doesnotexist/full.gaf",
+				DownloadLink: "/doesnotexist/disk.gaf",
 			}
 			if diff := cmp.Diff(want, upResp); diff != "" {
 				t.Fatalf("update: diff (-want +got):\n%s", diff)

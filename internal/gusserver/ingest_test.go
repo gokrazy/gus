@@ -49,7 +49,7 @@ func TestIngest(t *testing.T) {
 				MachineIDPattern: "scan2drive",
 				SBOMHash:         "abcdefg",
 				RegistryType:     "localdisk",
-				DownloadLink:     "/doesnotexist/full.gaf",
+				DownloadLink:     "/doesnotexist/disk.gaf",
 			})
 			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {

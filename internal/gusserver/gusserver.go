@@ -104,7 +104,7 @@ func (i *image) Size() uint64 {
 		if ent.Name() != base {
 			continue
 		}
-		st, err := os.Stat(filepath.Join(i.imageDir, ent.Name(), "full.gaf"))
+		st, err := os.Stat(filepath.Join(i.imageDir, ent.Name(), "disk.gaf"))
 		if err != nil {
 			log.Print(err)
 			return 0
@@ -233,7 +233,7 @@ func newServer(databaseType, databaseSource string, cfg *config) (*server, *http
 	if s.cfg.imageDir != "" {
 		// TODO: start periodic s.imageDir+"/tmp" cleanup
 
-		// TODO: add a handler that explicitly only allows access to full.gaf
+		// TODO: add a handler that explicitly only allows access to disk.gaf
 		// and sets Content-Type: application/zip without sniffing. verify that
 		// resume still works.
 		mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(s.cfg.imageDir))))
