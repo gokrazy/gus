@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -13,27 +12,18 @@ func TestHeartbeat(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer("txdb/"+tc.databaseType, t.Name(), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer srv.Close()
-
-			if err := srv.db.Ping(); err != nil {
-				t.Fatalf("unable to reach database %s", tc.databaseType)
-			}
+			ts := newTestServer(t, tc.databaseType)
 
 			// Ensure the heartbeats and machines tables are empty when a fresh
 			// server starts
-			ensureEmpty(t, srv, "heartbeats")
-			ensureEmpty(t, srv, "machines")
+			ts.ensureEmpty(t, "heartbeats")
+			ts.ensureEmpty(t, "machines")
 
-			testsrv := httptest.NewServer(mux)
-			client := testsrv.Client()
+			client := ts.Client()
 			b, err := json.Marshal(heartbeatRequest{
 				MachineID: "scan2drive",
 			})
-			req, err := http.NewRequest("POST", testsrv.URL+"/api/v1/heartbeat", bytes.NewReader(b))
+			req, err := http.NewRequest("POST", ts.URL()+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -46,7 +36,7 @@ func TestHeartbeat(t *testing.T) {
 			}
 
 			// Ensure the heartbeats table has a corresponding entry now
-			rows, err := srv.db.Query("SELECT machine_id FROM heartbeats")
+			rows, err := ts.srv.db.Query("SELECT machine_id FROM heartbeats")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,7 +59,7 @@ func TestHeartbeat(t *testing.T) {
 			}
 
 			// Ensure the machines table has a corresponding entry now
-			rows, err = srv.db.Query("SELECT machine_id FROM machines")
+			rows, err = ts.srv.db.Query("SELECT machine_id FROM machines")
 			if err != nil {
 				t.Fatal(err)
 			}

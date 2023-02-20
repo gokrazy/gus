@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -14,27 +13,18 @@ func TestIngest(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer("txdb/"+tc.databaseType, t.Name(), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer srv.Close()
-
-			if err := srv.db.Ping(); err != nil {
-				t.Fatalf("unable to reach database %s", tc.databaseType)
-			}
+			ts := newTestServer(t, tc.databaseType)
 
 			// Ensure the images table is empty when a fresh server starts
-			ensureEmpty(t, srv, "images")
+			ts.ensureEmpty(t, "images")
 
-			testsrv := httptest.NewServer(mux)
-			client := testsrv.Client()
+			client := ts.Client()
 
 			// Send a heartbeat to add a machine
 			b, err := json.Marshal(heartbeatRequest{
 				MachineID: "scan2drive",
 			})
-			req, err := http.NewRequest("POST", testsrv.URL+"/api/v1/heartbeat", bytes.NewReader(b))
+			req, err := http.NewRequest("POST", ts.URL()+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -52,7 +42,7 @@ func TestIngest(t *testing.T) {
 				RegistryType:     "localdisk",
 				DownloadLink:     "/doesnotexist/disk.gaf",
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/ingest", bytes.NewReader(b))
+			req, err = http.NewRequest("POST", ts.URL()+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +55,7 @@ func TestIngest(t *testing.T) {
 			}
 
 			// Ensure the images table has a corresponding entry now
-			rows, err := srv.db.Query("SELECT sbom_hash FROM images")
+			rows, err := ts.srv.db.Query("SELECT sbom_hash FROM images")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -88,7 +78,7 @@ func TestIngest(t *testing.T) {
 			}
 
 			// Ensure the machines table was updated for the new desired_image
-			rows, err = srv.db.Query("SELECT machine_id, desired_image FROM machines")
+			rows, err = ts.srv.db.Query("SELECT machine_id, desired_image FROM machines")
 			if err != nil {
 				t.Fatal(err)
 			}

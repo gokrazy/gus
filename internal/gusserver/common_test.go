@@ -2,6 +2,8 @@ package gusserver
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
@@ -42,8 +44,40 @@ func testDatabases() []testDatabase {
 	return dbs
 }
 
-func ensureEmpty(t *testing.T, srv *server, table string) {
-	rows, err := srv.db.Query("SELECT * FROM " + table)
+type testServer struct {
+	srv     *server
+	mux     *http.ServeMux
+	httpsrv *httptest.Server
+}
+
+func newTestServer(t *testing.T, databaseType string) *testServer {
+	srv, mux, err := newServer("txdb/"+databaseType, t.Name(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { srv.Close() })
+
+	if err := srv.db.Ping(); err != nil {
+		t.Fatalf("unable to reach database %s", databaseType)
+	}
+
+	return &testServer{
+		srv:     srv,
+		mux:     mux,
+		httpsrv: httptest.NewServer(mux),
+	}
+}
+
+func (ts *testServer) Client() *http.Client {
+	return ts.httpsrv.Client()
+}
+
+func (ts *testServer) URL() string {
+	return ts.httpsrv.URL
+}
+
+func (ts *testServer) ensureEmpty(t *testing.T, table string) {
+	rows, err := ts.srv.db.Query("SELECT * FROM " + table)
 	if err != nil {
 		t.Fatal(err)
 	}
