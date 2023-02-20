@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -16,18 +15,9 @@ func TestAttempt(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer("txdb/"+tc.databaseType, t.Name(), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer srv.Close()
+			ts := newTestServer(t, tc.databaseType)
 
-			if err := srv.db.Ping(); err != nil {
-				t.Fatalf("unable to reach database %s", tc.databaseType)
-			}
-
-			testsrv := httptest.NewServer(mux)
-			client := testsrv.Client()
+			client := ts.Client()
 
 			const machineID = "scan2drive"
 
@@ -35,7 +25,7 @@ func TestAttempt(t *testing.T) {
 			b, err := json.Marshal(heartbeatRequest{
 				MachineID: machineID,
 			})
-			req, err := http.NewRequest("POST", testsrv.URL+"/api/v1/heartbeat", bytes.NewReader(b))
+			req, err := http.NewRequest("POST", ts.URL()+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -53,7 +43,7 @@ func TestAttempt(t *testing.T) {
 				RegistryType:     "localdisk",
 				DownloadLink:     "/doesnotexist/disk.gaf",
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/ingest", bytes.NewReader(b))
+			req, err = http.NewRequest("POST", ts.URL()+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,7 +59,7 @@ func TestAttempt(t *testing.T) {
 			b, err = json.Marshal(updateRequest{
 				MachineID: machineID,
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/update", bytes.NewReader(b))
+			req, err = http.NewRequest("POST", ts.URL()+"/api/v1/update", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -102,7 +92,7 @@ func TestAttempt(t *testing.T) {
 				MachineID: machineID,
 				SBOMHash:  upResp.SBOMHash,
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/attempt", bytes.NewReader(b))
+			req, err = http.NewRequest("POST", ts.URL()+"/api/v1/attempt", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -118,26 +108,14 @@ func TestAttempt(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			rows, err := srv.db.Query("SELECT update_state FROM machines WHERE machine_id = $1", machineID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer rows.Close()
-			if !rows.Next() {
-				t.Fatalf("machines table unexpectedly contains no entries for %s", machineID)
-			}
-			var updateState string
-			if err := rows.Scan(&updateState); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := updateState, "attempted"; got != want {
-				t.Fatalf("machines table entry has unexpected update_state: got %q, want %q", got, want)
-			}
-			if rows.Next() {
-				t.Fatalf("machines table unexpectedly contains more than one entry for %s", machineID)
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
+			{
+				want := []map[string]any{
+					{"update_state": "attempted"},
+				}
+				q := "SELECT update_state FROM machines WHERE machine_id = $1"
+				if diff := ts.diffQuery(t, want, q, machineID); diff != "" {
+					t.Errorf("heartbeats table: unexpected diff (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}

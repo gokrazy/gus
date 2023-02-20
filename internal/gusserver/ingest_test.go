@@ -2,7 +2,6 @@ package gusserver
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -55,52 +54,29 @@ func TestIngest(t *testing.T) {
 			}
 
 			// Ensure the images table has a corresponding entry now
-			rows, err := ts.srv.db.Query("SELECT sbom_hash FROM images")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer rows.Close()
-			if !rows.Next() {
-				t.Fatalf("images table unexpectedly still contains no entries")
-			}
-			var sbomHash string
-			if err := rows.Scan(&sbomHash); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := sbomHash, "abcdefg"; got != want {
-				t.Fatalf("heartbeats table entry has unexpected sbom_hash: got %q, want %q", got, want)
-			}
-			if rows.Next() {
-				t.Fatalf("images table unexpectedly contains more than one entry")
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
+			{
+				want := []map[string]any{
+					{"sbom_hash": "abcdefg"},
+				}
+				q := "SELECT sbom_hash FROM images"
+				if diff := ts.diffQuery(t, want, q); diff != "" {
+					t.Errorf("heartbeats table: unexpected diff (-want +got):\n%s", diff)
+				}
 			}
 
 			// Ensure the machines table was updated for the new desired_image
-			rows, err = ts.srv.db.Query("SELECT machine_id, desired_image FROM machines")
-			if err != nil {
-				t.Fatal(err)
+			{
+				want := []map[string]any{
+					{
+						"machine_id":    "scan2drive",
+						"desired_image": "abcdefg",
+					},
+				}
+				q := "SELECT machine_id, desired_image FROM machines"
+				if diff := ts.diffQuery(t, want, q); diff != "" {
+					t.Errorf("heartbeats table: unexpected diff (-want +got):\n%s", diff)
+				}
 			}
-			defer rows.Close()
-			if !rows.Next() {
-				t.Fatalf("images table unexpectedly still contains no entries")
-			}
-			var machineID string
-			var desiredImage sql.NullString
-			if err := rows.Scan(&machineID, &desiredImage); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := desiredImage.String, "abcdefg"; got != want {
-				t.Fatalf("machines table entry has unexpected desired_image: got %q, want %q", got, want)
-			}
-			if rows.Next() {
-				t.Fatalf("machines table unexpectedly contains more than one entry")
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
-			}
-
 		})
 	}
 }
