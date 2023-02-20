@@ -36,50 +36,26 @@ func TestHeartbeat(t *testing.T) {
 			}
 
 			// Ensure the heartbeats table has a corresponding entry now
-			rows, err := ts.srv.db.Query("SELECT machine_id FROM heartbeats")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer rows.Close()
-			if !rows.Next() {
-				t.Fatalf("heartbeats table unexpectedly still contains no entries")
-			}
-			var machineID string
-			if err := rows.Scan(&machineID); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := machineID, "scan2drive"; got != want {
-				t.Fatalf("heartbeats table entry has unexpected machine_id: got %q, want %q", got, want)
-			}
-			if rows.Next() {
-				t.Fatalf("heartbeats table unexpectedly contains more than one entry")
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
+			{
+				want := []map[string]any{
+					{"machine_id": "scan2drive"},
+				}
+				q := "SELECT machine_id FROM heartbeats"
+				if diff := ts.diffQuery(t, want, q); diff != "" {
+					t.Errorf("heartbeats table: unexpected diff (-want +got):\n%s", diff)
+				}
 			}
 
 			// Ensure the machines table has a corresponding entry now
-			rows, err = ts.srv.db.Query("SELECT machine_id FROM machines")
-			if err != nil {
-				t.Fatal(err)
+			{
+				want := []map[string]any{
+					{"machine_id": "scan2drive"},
+				}
+				q := "SELECT machine_id FROM machines"
+				if diff := ts.diffQuery(t, want, q); diff != "" {
+					t.Errorf("heartbeats table: unexpected diff (-want +got):\n%s", diff)
+				}
 			}
-			defer rows.Close()
-			if !rows.Next() {
-				t.Fatalf("machines table unexpectedly still contains no entries")
-			}
-			if err := rows.Scan(&machineID); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := machineID, "scan2drive"; got != want {
-				t.Fatalf("machines table entry has unexpected machine_id: got %q, want %q", got, want)
-			}
-			if rows.Next() {
-				t.Fatalf("machines table unexpectedly contains more than one entry")
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
-			}
-
 		})
 	}
 }

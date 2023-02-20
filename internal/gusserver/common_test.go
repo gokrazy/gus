@@ -1,6 +1,7 @@
 package gusserver
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-txdb"
+	"github.com/google/go-cmp/cmp"
 )
 
 type testDatabase struct {
@@ -85,4 +87,55 @@ func (ts *testServer) ensureEmpty(t *testing.T, table string) {
 	if rows.Next() {
 		t.Fatalf("%s table unexpectedly contains entries", table)
 	}
+}
+
+// beware: when calling decodeRows() explicitly, you are responsible for calling rows.Close() when done.
+func (ts *testServer) decodeRows(t *testing.T, rows *sql.Rows) []map[string]any {
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var results []map[string]any
+	for rows.Next() {
+		result := make(map[string]any)
+		var dest []any
+		for _, ct := range colTypes {
+			switch tn := ct.DatabaseTypeName(); tn {
+			case "TEXT":
+				var val string
+				dest = append(dest, &val)
+			default:
+				t.Fatalf("BUG: column type %q not implemented", tn)
+			}
+		}
+		if err := rows.Scan(dest...); err != nil {
+			t.Fatal(err)
+		}
+		for idx, ct := range colTypes {
+			name := ct.Name()
+			switch ct.DatabaseTypeName() {
+			case "TEXT":
+				val := dest[idx].(*string)
+				result[name] = *val
+			}
+		}
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return results
+}
+
+// diffQuery returns a (-want +got) diff between the want parameter and
+// evaluating the specified database query.
+func (ts *testServer) diffQuery(t *testing.T, want any, query string, args ...any) string {
+	rows, err := ts.srv.db.Query(query, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	got := ts.decodeRows(t, rows)
+	return cmp.Diff(want, got)
 }
