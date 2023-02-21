@@ -1,13 +1,11 @@
 package gusserver
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
 
+	"github.com/antihax/optional"
+	"github.com/gokrazy/gokapi/gusapi"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -16,78 +14,46 @@ func TestUpdate(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
-			srv, mux, err := newServer("txdb/"+tc.databaseType, t.Name(), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer srv.Close()
+			ctx := context.Background()
+			ts := newTestServer(t, tc.databaseType)
+			api := ts.API()
 
-			if err := srv.db.Ping(); err != nil {
-				t.Fatalf("unable to reach database %s", tc.databaseType)
-			}
-
-			testsrv := httptest.NewServer(mux)
-			client := testsrv.Client()
+			const machineID = "scan2drive"
 
 			// Send a heartbeat to add a machine
-			b, err := json.Marshal(heartbeatRequest{
-				MachineID: "scan2drive",
+			_, _, err := api.HeartbeatApi.Heartbeat(ctx, &gusapi.HeartbeatApiHeartbeatOpts{
+				Body: optional.NewInterface(&gusapi.HeartbeatRequest{
+					MachineId: machineID,
+				}),
 			})
-			req, err := http.NewRequest("POST", testsrv.URL+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
 			}
 
-			b, err = json.Marshal(ingestRequest{
-				MachineIDPattern: "scan2drive",
-				SBOMHash:         "abcdefg",
-				RegistryType:     "localdisk",
-				DownloadLink:     "/doesnotexist/disk.gaf",
+			_, _, err = api.IngestApi.Ingest(ctx, &gusapi.IngestApiIngestOpts{
+				Body: optional.NewInterface(&gusapi.IngestRequest{
+					MachineIdPattern: "scan2drive",
+					SbomHash:         "abcdefg",
+					RegistryType:     "localdisk",
+					DownloadLink:     "/doesnotexist/disk.gaf",
+				}),
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
-			}
-			resp, err = client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
 			}
 
 			// Ensure the update API returns the new image now
-			b, err = json.Marshal(updateRequest{
-				MachineID: "scan2drive",
+			upResp, _, err := ts.API().UpdateApi.Update(ctx, &gusapi.UpdateApiUpdateOpts{
+				Body: optional.NewInterface(&gusapi.UpdateRequest{
+					MachineId: machineID,
+				}),
 			})
-			req, err = http.NewRequest("POST", testsrv.URL+"/api/v1/update", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
 			}
-			resp, err = client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
-			}
-			b, err = io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var upResp updateResponse
-			if err := json.Unmarshal(b, &upResp); err != nil {
-				t.Fatal(err)
-			}
-			want := updateResponse{
-				SBOMHash:     "abcdefg",
+
+			want := gusapi.UpdateResponse{
+				SbomHash:     "abcdefg",
 				RegistryType: "localdisk",
 				DownloadLink: "/doesnotexist/disk.gaf",
 			}

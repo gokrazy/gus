@@ -1,10 +1,11 @@
 package gusserver
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
+	"context"
 	"testing"
+
+	"github.com/antihax/optional"
+	"github.com/gokrazy/gokapi/gusapi"
 )
 
 func TestHeartbeat(t *testing.T) {
@@ -12,27 +13,24 @@ func TestHeartbeat(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
+			ctx := context.Background()
 			ts := newTestServer(t, tc.databaseType)
+			api := ts.API()
+
+			const machineID = "scan2drive"
 
 			// Ensure the heartbeats and machines tables are empty when a fresh
 			// server starts
 			ts.ensureEmpty(t, "heartbeats")
 			ts.ensureEmpty(t, "machines")
 
-			client := ts.Client()
-			b, err := json.Marshal(heartbeatRequest{
-				MachineID: "scan2drive",
+			_, _, err := api.HeartbeatApi.Heartbeat(ctx, &gusapi.HeartbeatApiHeartbeatOpts{
+				Body: optional.NewInterface(&gusapi.HeartbeatRequest{
+					MachineId: machineID,
+				}),
 			})
-			req, err := http.NewRequest("POST", ts.URL()+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
 			}
 
 			// Ensure the heartbeats table has a corresponding entry now

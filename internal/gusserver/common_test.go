@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-txdb"
+	"github.com/gokrazy/gokapi/gusapi"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -72,6 +73,12 @@ func newTestServer(t *testing.T, databaseType string) *testServer {
 
 func (ts *testServer) Client() *http.Client {
 	return ts.httpsrv.Client()
+}
+
+func (ts *testServer) API() *gusapi.APIClient {
+	cfg := gusapi.NewConfiguration()
+	cfg.BasePath = ts.URL() + "/api/v1"
+	return gusapi.NewAPIClient(cfg)
 }
 
 func (ts *testServer) URL() string {

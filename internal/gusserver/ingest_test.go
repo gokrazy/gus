@@ -1,10 +1,11 @@
 package gusserver
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
+	"context"
 	"testing"
+
+	"github.com/antihax/optional"
+	"github.com/gokrazy/gokapi/gusapi"
 )
 
 func TestIngest(t *testing.T) {
@@ -12,45 +13,35 @@ func TestIngest(t *testing.T) {
 
 	for _, tc := range testDBs {
 		t.Run(tc.databaseType, func(t *testing.T) {
+			ctx := context.Background()
 			ts := newTestServer(t, tc.databaseType)
+			api := ts.API()
+
+			const machineID = "scan2drive"
 
 			// Ensure the images table is empty when a fresh server starts
 			ts.ensureEmpty(t, "images")
 
-			client := ts.Client()
-
 			// Send a heartbeat to add a machine
-			b, err := json.Marshal(heartbeatRequest{
-				MachineID: "scan2drive",
+			_, _, err := api.HeartbeatApi.Heartbeat(ctx, &gusapi.HeartbeatApiHeartbeatOpts{
+				Body: optional.NewInterface(&gusapi.HeartbeatRequest{
+					MachineId: machineID,
+				}),
 			})
-			req, err := http.NewRequest("POST", ts.URL()+"/api/v1/heartbeat", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
 			}
 
-			b, err = json.Marshal(ingestRequest{
-				MachineIDPattern: "scan2drive",
-				SBOMHash:         "abcdefg",
-				RegistryType:     "localdisk",
-				DownloadLink:     "/doesnotexist/disk.gaf",
+			_, _, err = api.IngestApi.Ingest(ctx, &gusapi.IngestApiIngestOpts{
+				Body: optional.NewInterface(&gusapi.IngestRequest{
+					MachineIdPattern: "scan2drive",
+					SbomHash:         "abcdefg",
+					RegistryType:     "localdisk",
+					DownloadLink:     "/doesnotexist/disk.gaf",
+				}),
 			})
-			req, err = http.NewRequest("POST", ts.URL()+"/api/v1/ingest", bytes.NewReader(b))
 			if err != nil {
 				t.Fatal(err)
-			}
-			resp, err = client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := resp.StatusCode, http.StatusOK; got != want {
-				t.Fatalf("unexpected HTTP status code: got %v, want %v", resp.Status, want)
 			}
 
 			// Ensure the images table has a corresponding entry now
