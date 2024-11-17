@@ -1,6 +1,6 @@
 module github.com/gokrazy/gus
 
-go 1.19
+go 1.22
 
 require (
 	github.com/DATA-DOG/go-txdb v0.1.5
@@ -10,6 +10,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/renameio/v2 v2.0.0
 	github.com/lib/pq v1.10.7
+	github.com/stapelberg/postgrestest v0.0.0-20241116183525-c42666fa9681
 	modernc.org/sqlite v1.20.4
 )
 

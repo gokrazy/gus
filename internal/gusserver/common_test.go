@@ -1,50 +1,54 @@
 package gusserver
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sync"
 	"testing"
+	"time"
 
-	"github.com/DATA-DOG/go-txdb"
 	"github.com/gokrazy/gokapi/gusapi"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stapelberg/postgrestest"
 )
 
-type testDatabase struct {
-	databaseType   string
-	databaseSource string
-}
+var dbc *postgrestest.DBCreator
 
-var registerOnce sync.Once
-
-func testDatabases() []testDatabase {
-	pgHost := os.Getenv("POSTGRES_HOST")
-	pgPort := os.Getenv("POSTGRES_PORT")
-	pgUser := os.Getenv("POSTGRES_USER")
-	pgPassword := os.Getenv("POSTGRES_PASSWORD")
-	pgDBName := os.Getenv("POSTGRES_DBNAME")
-
-	dbs := []testDatabase{
-		{"sqlite", ":memory:"},
-		{"postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			pgHost, pgPort, pgUser, pgPassword, pgDBName)},
+func TestMain(m *testing.M) {
+	// It is best to specify the PGURL environment variable so that only
+	// one PostgreSQL instance is used for all tests.
+	pgurl := os.Getenv("PGURL")
+	if pgurl == "" {
+		// 'go test' was started directly, start one Postgres per process:
+		pgt, err := postgrestest.Start(context.Background())
+		if err != nil {
+			panic(err)
+		}
+		defer pgt.Cleanup()
+		pgurl = pgt.DefaultDatabase()
 	}
 
-	registerOnce.Do(func() {
-		for _, db := range dbs {
-			if db.databaseType == "sqlite" {
-				txdb.Register("txdb/"+db.databaseType, db.databaseType, db.databaseSource, txdb.SavePointOption(nil))
-			} else {
-				txdb.Register("txdb/"+db.databaseType, db.databaseType, db.databaseSource)
-			}
-		}
-	})
+	var err error
+	dbc, err = postgrestest.NewDBCreator(pgurl)
+	if err != nil {
+		panic(err)
+	}
 
-	return dbs
+	m.Run()
+}
+
+type testDatabase struct {
+	databaseType string
+}
+
+func testDatabases() []testDatabase {
+	return []testDatabase{
+		{"sqlite"},
+		{"postgres"},
+	}
 }
 
 type testServer struct {
@@ -54,7 +58,25 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T, databaseType string) *testServer {
-	srv, mux, err := newServer("txdb/"+databaseType, t.Name(), nil)
+	pgurl := t.Name()
+	switch databaseType {
+	case "postgres":
+		var err error
+		start := time.Now()
+		pgurl, err = dbc.CreateDatabase(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(os.Stderr, "CreateDatabase in %v\n", time.Since(start))
+
+	case "sqlite":
+		pgurl = ":memory:"
+
+	default:
+		t.Fatalf("BUG: unknown database type %q", databaseType)
+	}
+
+	srv, mux, err := newServer(databaseType, pgurl, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
